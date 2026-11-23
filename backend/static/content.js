@@ -32,7 +32,9 @@ function fillForm(form, item, fieldMap) {
   }
 }
 function updateFormTitle(type, editing) {
-  $(type + 'FormTitle').textContent = editing ? 'Edit ' + type.slice(0, -1) : (type === 'pages' ? 'Create a page' : 'Add a ' + type.slice(0, -1));
+  const ids = {products:'productFormTitle',services:'serviceFormTitle',pages:'pageFormTitle'};
+  const labels = {products:'product',services:'service',pages:'page'};
+  $(ids[type]).textContent = editing ? 'Edit ' + labels[type] : (type === 'pages' ? 'Create a page' : 'Add a ' + labels[type]);
 }
 function renderProducts(items) {
   $('productList').innerHTML = items.map(p => '<article class="content-entry"><h3>' + escapeText(p.name) + '</h3><p>' + escapeText(p.category) + ' · ' + displayPrice(p.price_cents) + ' · ' + (p.active ? 'Shown in shop' : 'Hidden') + '</p><p>' + escapeText(p.description) + '</p><div class="content-entry-actions"><button data-edit-product="' + p.id + '">Edit</button><button data-toggle-product="' + p.id + '" data-active="' + p.active + '">' + (p.active ? 'Hide from shop' : 'Show in shop') + '</button></div></article>').join('') || '<p class="muted">No products yet.</p>';
@@ -83,8 +85,16 @@ function renderMedia(items) {
     return '<article class="content-entry"><h3>' + escapeText(a.original_name) + '</h3>' + preview + '<p>' + a.media_type + ' · ' + Math.ceil(a.size_bytes/1024) + ' KB</p><p><code>' + escapeText(url) + '</code></p><div class="content-entry-actions"><button class="copy-media" data-copy-url="' + escapeText(url) + '">Copy media link</button></div></article>';
   }).join('') || '<p class="muted">Uploaded images and videos will appear here.</p>';
   $('mediaList').querySelectorAll('[data-copy-url]').forEach(button => button.onclick = async () => {
-    try { await navigator.clipboard.writeText(location.origin + button.dataset.copyUrl); setStatus('Media link copied. Paste it into a product, service, or page.'); }
-    catch { setStatus('Copy this media link: ' + location.origin + button.dataset.copyUrl); }
+    try { await navigator.clipboard.writeText(button.dataset.copyUrl); setStatus('Relative media link copied. Paste it into a product, service, or page.'); }
+    catch { setStatus('Copy this media link: ' + button.dataset.copyUrl); }
+  });
+}
+function renderHomepage(settings) {
+  fillForm($('homepageForm'),settings,{
+    hero_kicker:settings.hero_kicker,hero_title:settings.hero_title,hero_emphasis:settings.hero_emphasis,
+    hero_body:settings.hero_body,hero_note:settings.hero_note,shop_title:settings.shop_title,
+    shop_intro:settings.shop_intro,services_title:settings.services_title,services_intro:settings.services_intro,
+    inquiry_title:settings.inquiry_title,inquiry_intro:settings.inquiry_intro
   });
 }
 async function loadContent() {
@@ -93,6 +103,7 @@ async function loadContent() {
   renderServices(result.services);
   renderPages(result.pages);
   renderMedia(result.media);
+  renderHomepage(result.settings);
 }
 function savePayload(form, kind) {
   const data = formData(form);
@@ -119,6 +130,12 @@ async function handleSave(event, kind) {
 document.querySelectorAll('.content-tab').forEach(button => button.onclick = () => {
   document.querySelectorAll('.content-tab').forEach(tab => tab.classList.toggle('active',tab === button));
   document.querySelectorAll('.content-panel').forEach(panel => panel.hidden = panel.id !== button.dataset.panel);
+});
+$('homepageForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const data=Object.fromEntries(new FormData(event.currentTarget).entries());
+  try { const result=await api('/api/ceo/site-settings',{method:'PATCH',body:JSON.stringify(data)});setStatus(result.message); }
+  catch(error){setStatus(error.message,true);}
 });
 $('productForm').addEventListener('submit',event=>handleSave(event,'products'));
 $('serviceForm').addEventListener('submit',event=>handleSave(event,'services'));
