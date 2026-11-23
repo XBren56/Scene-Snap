@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Scene Snap Workroom</title><link rel="stylesheet" href="{{ url_for('static',filename='styles.css') }}"></head>
+<body>
+  <header class="wrap topbar"><a class="brand" href="/">scene <i>snap</i></a><nav><a href="/">Customer shop</a><a href="/workroom">Workroom</a></nav><div class="top-actions"><span id="workUser" class="muted"></span><a class="button" id="ownerLink" href="/ceo" hidden>CEO office</a><button class="outline" id="workLogout">Sign out</button></div></header>
+  <main class="wrap work-main">
+    <div class="eyebrow">Staff workspace</div><h1>Workroom</h1><p>Assigned events, timing, sourcing, and stock in one place.</p>
+    <div class="metric-grid" id="workMetrics"></div>
+    <section class="panel"><div class="section-head"><h2>Events and assignments</h2><span class="muted">Customer details are shown only for work you’re allowed to handle.</span></div><div class="table-scroll"><table><thead><tr><th>Event</th><th>Date</th><th>Venue</th><th>Customer</th><th>Estimate / time</th><th>Status</th><th>Update / assign</th></tr></thead><tbody id="eventRows"></tbody></table></div></section>
+    <div class="work-columns">
+      <section class="panel"><h2>Sourcing tasks</h2><form id="sourcingForm" class="compact-form"><label>Item to source<input name="item_name" maxlength="160" required placeholder="Backdrop stand, balloons, print…"></label><label>For event<select name="event_id" id="sourcingEvent"><option value="">General inventory / not assigned</option></select></label><div class="form-row"><label>Quantity<input name="quantity" type="number" min="0.01" step="0.01" value="1"></label><label>Expected cost ($)<input name="expected_cost" type="number" min="0" step="0.01" value="0"></label></div><div class="form-row"><label>Need by<input name="due_date" type="date"></label><label>Notes<input name="notes" maxlength="1000"></label></div><button class="button" type="submit">Add sourcing item</button></form><div id="sourcingList" class="data-list"></div></section>
+      <section class="panel"><h2>Low stock</h2><form id="inventoryForm" class="compact-form" hidden><label>Stock item<input name="name" maxlength="160" required placeholder="Backdrop stand"></label><div class="form-row"><label>On hand<input name="quantity_on_hand" type="number" min="0" step="0.1" value="0"></label><label>Restock at<input name="reorder_at" type="number" min="0" step="0.1" value="1"></label></div><div class="form-row"><label>Unit<input name="unit" value="each" maxlength="30"></label><label>Replacement cost ($)<input name="replacement_cost" type="number" min="0" step="0.01" value="0"></label></div><label>Storage location<input name="storage_location" maxlength="160"></label><button class="button" type="submit">Save stock count</button></form><div id="inventoryList" class="data-list"></div></section>
+    </div>
+    <div id="workMessage" class="message" aria-live="polite"></div>
+  </main>
+  <div id="toast" class="toast" role="status"></div><script src="{{ url_for('static',filename='workroom.js') }}" defer></script>
+</body></html>
