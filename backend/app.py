@@ -121,6 +121,20 @@ def initialize():
             ("setup-styling", "Setup & styling", "Choose delivery, event-day styling, and teardown. Labor and travel are included in your estimate.", "◷", None, 2),
         ]
         conn.executemany("INSERT OR IGNORE INTO services(slug,name,description,icon,price_cents,sort_order) VALUES(?,?,?,?,?,?)", services)
+        conn.execute("""INSERT OR IGNORE INTO site_settings(id,hero_kicker,hero_title,hero_emphasis,hero_body,hero_note,shop_title,shop_intro,services_title,services_intro,inquiry_title,inquiry_intro)
+            VALUES(1,?,?,?,?,?,?,?,?,?,?,?)""", (
+            "A little wonder, made for your moment",
+            "Make the room feel like",
+            "your story.",
+            "Thoughtful party backdrops, custom decorations, and hands-on setup for the days you want to remember. Pick a ready-made scene or make one your own.",
+            "Your moment, thoughtfully set",
+            "Find your starting point",
+            "Choose a collection, then make it yours.",
+            "We can bring the whole scene",
+            "Pick the help that fits your day.",
+            "Tell us what you’re celebrating.",
+            "Share your date, guest count, and the feeling you want. Your inquiry is saved to your account; our team confirms availability, sourcing, setup time, travel, and the final quote."
+        ))
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
         owner_email = CEO_EMAIL
         owner_password = os.environ.get("SCENESNAP_CEO_PASSWORD", "")
@@ -333,6 +347,13 @@ def public_pages():
     with db() as conn:
         rows = conn.execute("SELECT slug,title,summary,media_url FROM site_pages WHERE published=1 ORDER BY sort_order,id").fetchall()
     return jsonify(pages=[row_event(r) for r in rows])
+
+
+@app.get("/api/site-settings")
+def public_site_settings():
+    with db() as conn:
+        row = conn.execute("SELECT hero_kicker,hero_title,hero_emphasis,hero_body,hero_note,shop_title,shop_intro,services_title,services_intro,inquiry_title,inquiry_intro FROM site_settings WHERE id=1").fetchone()
+    return jsonify(settings=row_event(row) if row else {})
 
 
 @app.get("/api/me")
@@ -803,7 +824,21 @@ def ceo_content():
         services = conn.execute("SELECT * FROM services ORDER BY sort_order,id").fetchall()
         pages = conn.execute("SELECT * FROM site_pages ORDER BY sort_order,id").fetchall()
         media = conn.execute("SELECT * FROM media_assets ORDER BY id DESC").fetchall()
-    return jsonify(products=[row_event(r) for r in products], services=[row_event(r) for r in services], pages=[row_event(r) for r in pages], media=[row_event(r) for r in media])
+        settings = conn.execute("SELECT * FROM site_settings WHERE id=1").fetchone()
+    return jsonify(products=[row_event(r) for r in products], services=[row_event(r) for r in services], pages=[row_event(r) for r in pages], media=[row_event(r) for r in media], settings=row_event(settings) if settings else {})
+
+
+@app.patch("/api/ceo/site-settings")
+@require_role("ceo")
+def update_site_settings():
+    data = json_body()
+    fields = ("hero_kicker","hero_title","hero_emphasis","hero_body","hero_note","shop_title","shop_intro","services_title","services_intro","inquiry_title","inquiry_intro")
+    values = [str(data.get(key, "")).strip()[:4000] for key in fields]
+    with db() as conn:
+        conn.execute("UPDATE site_settings SET " + ",".join(f"{key}=?" for key in fields) + ",updated_at=CURRENT_TIMESTAMP WHERE id=1", values)
+        row = conn.execute("SELECT * FROM site_settings WHERE id=1").fetchone()
+        conn.execute("INSERT INTO audit_log(actor_id,action,entity,entity_id) VALUES(?,?,?,?)", (g.scene_user["id"], "homepage_content_updated", "site_settings", "1"))
+    return jsonify(message="Homepage content saved.", settings=row_event(row))
 
 
 def content_values(data, required_name=True):
