@@ -16,32 +16,25 @@ Scene Snap is now a runnable full-stack starter with HTML/CSS/JavaScript pages, 
 ## Run locally on Windows
 
 1. Install Python 3.10+ and a C compiler such as GCC (for example, the MSYS2 UCRT64 GCC toolchain).
-2. Open PowerShell in this repository and set up Python:
+2. Open PowerShell in this repository and install the app:
 
    ```powershell
    py -3 -m venv .venv
    .venv\Scripts\Activate.ps1
    pip install -r requirements.txt
-   Copy-Item .env.example .env
+   python setup.py
    ```
 
-3. Open `.env`. Replace the example secret, CEO email, and CEO password. Keep `SCENESNAP_DEV_MODE=1` only for local use. Set `SCENESNAP_BASE_URL` to the local address. The configured owner account is created on first startup.
-4. Build the C estimator:
-
-   ```powershell
-   python build_native.py
-   ```
-
-   If Windows cannot find `cc`, set `CC=gcc` in PowerShell or add the GCC compiler folder to PATH.
-5. Start the app:
+   Setup asks for the CEO email and password in the terminal. It generates a private app secret, builds the C estimator, creates the database and owner account, and saves only the password hash. Your `.env` file is ignored by Git.
+3. Start the app:
 
    ```powershell
    python run.py
    ```
 
-6. Open `http://127.0.0.1:5000`. The SQLite database is created in the ignored `instance/` folder.
+4. Open `http://127.0.0.1:5000`. The SQLite database is created in the ignored `instance/` folder.
 
-For local account verification, register, copy the `development_verification_link` shown in the sign-in dialog, and open it. For staff access, sign in as the CEO, invite the exact work email, then use the invitation link. A staff invite does not activate until the email is verified.
+For local account verification, create an account, copy the development verification link shown in the registration dialog, and open it. For staff access, sign in as the CEO, invite the exact work email, then use the invitation link. A staff invite does not activate until the email is verified.
 
 ## Security and launch limits
 
