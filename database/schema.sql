@@ -210,3 +210,19 @@ CREATE TABLE IF NOT EXISTS media_assets (
 CREATE INDEX IF NOT EXISTS services_active_order ON services(active,sort_order,id);
 CREATE INDEX IF NOT EXISTS site_pages_published_order ON site_pages(published,sort_order,id);
 CREATE INDEX IF NOT EXISTS media_assets_created ON media_assets(created_at);
+
+CREATE TABLE IF NOT EXISTS site_settings (
+    id INTEGER PRIMARY KEY CHECK(id=1),
+    hero_kicker TEXT NOT NULL DEFAULT '',
+    hero_title TEXT NOT NULL DEFAULT '',
+    hero_emphasis TEXT NOT NULL DEFAULT '',
+    hero_body TEXT NOT NULL DEFAULT '',
+    hero_note TEXT NOT NULL DEFAULT '',
+    shop_title TEXT NOT NULL DEFAULT '',
+    shop_intro TEXT NOT NULL DEFAULT '',
+    services_title TEXT NOT NULL DEFAULT '',
+    services_intro TEXT NOT NULL DEFAULT '',
+    inquiry_title TEXT NOT NULL DEFAULT '',
+    inquiry_intro TEXT NOT NULL DEFAULT '',
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
