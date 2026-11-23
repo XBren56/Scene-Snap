@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Scene Snap CEO Office</title><link rel="stylesheet" href="{{ url_for('static',filename='styles.css') }}"></head>
+<body>
+  <header class="wrap topbar"><a class="brand" href="/">scene <i>snap</i></a><nav><a href="/">Customer shop</a><a href="/workroom">Workroom</a><a href="/ceo">CEO office</a></nav><div class="top-actions"><span id="ceoUser" class="muted">Owner</span><button class="outline" id="ceoLogout">Sign out</button></div></header>
+  <main class="wrap work-main">
+    <div class="eyebrow">Private owner area</div><h1>CEO office</h1><p>Business-wide operations, approvals, records, access, and audit history.</p>
+    <div class="metric-grid" id="ceoMetrics"></div>
+    <div class="owner-columns">
+      <section class="panel"><h2>Staff accounts & invitations</h2><form id="inviteForm" class="compact-form"><label>Issued work email<input name="email" type="email" required placeholder="employee@yourcompany.com"></label><label>Role<select name="role"><option value="event_assistant">Event assistant</option><option value="designer">Designer</option><option value="operations_manager">Operations manager</option></select></label><button class="button" type="submit">Send invitation</button></form><div id="staffList" class="data-list"></div></section>
+      <section class="panel"><h2>Business binder</h2><p class="muted">Keep the business plan, goals, pricing, policies, licenses, insurance, taxes, marketing, supplier notes, and seasonal plans here.</p><form id="recordForm" class="compact-form"><label>Record type<select name="record_type"><option value="plan">Business plan</option><option value="goal">Goal</option><option value="policy">Policy</option><option value="license">License</option><option value="insurance">Insurance</option><option value="tax">Tax / bookkeeping</option><option value="pricing">Pricing</option><option value="marketing">Marketing</option><option value="season_plan">Season plan</option><option value="meeting">Meeting notes</option><option value="other">Other</option></select></label><label>Title<input name="title" maxlength="160" required></label><label>Details<textarea name="content" rows="4" maxlength="10000"></textarea></label><button class="button" type="submit">Save private record</button></form><div id="recordsList" class="data-list"></div></section>
+    </div>
+    <section class="panel"><h2>All event inquiries</h2><div class="table-scroll"><table><thead><tr><th>Event</th><th>Customer</th><th>Date</th><th>Status</th><th>Estimate</th></tr></thead><tbody id="ceoEvents"></tbody></table></div></section>
+    <section class="panel"><h2>Order requests</h2><div class="table-scroll"><table><thead><tr><th>Order</th><th>Customer</th><th>Status</th><th>Subtotal estimate</th><th>Requested</th></tr></thead><tbody id="ceoOrders"></tbody></table></div></section>
+    <section class="panel"><h2>Recent activity</h2><div id="auditList" class="data-list"></div></section>
+    <div id="ceoMessage" class="message" aria-live="polite"></div>
+  </main>
+  <div id="toast" class="toast" role="status"></div><script src="{{ url_for('static',filename='ceo.js') }}" defer></script>
+</body></html>
