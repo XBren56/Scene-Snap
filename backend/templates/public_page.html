@@ -1,0 +1,5 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{ page.title }} · Scene Snap</title><link rel="stylesheet" href="{{ url_for('static',filename='styles.css') }}"></head>
+<body><header class="wrap topbar"><a class="brand" href="/">scene <i>snap</i></a><nav><a href="/">Home</a><a href="/#shop">Shop</a><a href="/#services">Event services</a></nav><div class="top-actions"><a class="outline" href="/">Back to shop</a></div></header>
+<main class="wrap content-main"><article class="panel public-page"><div class="eyebrow">Scene Snap</div><h1>{{ page.title }}</h1>{% if page.summary %}<p class="muted">{{ page.summary }}</p>{% endif %}
+{% if page.media_url %}{% if page.media_url.lower().endswith('.mp4') or page.media_url.lower().endswith('.webm') %}<video class="public-page-media" src="{{ page.media_url }}" controls playsinline></video>{% else %}<img class="public-page-media" src="{{ page.media_url }}" alt="">{% endif %}{% endif %}
+<div class="public-page-body">{{ page.body }}</div></article></main></body></html>
