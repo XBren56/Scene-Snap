@@ -11,7 +11,14 @@ Scene Snap is now a runnable full-stack starter with HTML/CSS/JavaScript pages, 
 - C-powered event estimates that include decorations, sourcing, labor rate, travel, guest count, and planned time.
 - Staff workroom with permission-filtered events, status updates, sourcing lists, and inventory warnings.
 - CEO-only owner page, staff invitations, business binder records, event and order summaries, and audit history.
+- CEO content studio for editing homepage text, products, and services; publishing custom pages; and uploading image or video media.
 - One configured CEO email. Employee permissions are granted only through a specific owner invitation plus verification of the invited email; an email domain by itself grants no access.
+
+## Edit the website
+
+Sign in with the CEO account and open **CEO office → Edit site content**. The Content Studio lets the owner edit homepage copy, add or update shop products and event services, hide items without deleting order history, create and publish custom pages, and upload media for cards and pages.
+
+Uploads accept JPG, PNG, WEBP, GIF, MP4, and WEBM files up to 12 MB. Media is stored under the ignored local `instance/uploads/` folder; back up that folder with the SQLite database. A hosted deployment needs persistent storage for uploads and database records.
 
 ## Run locally on Windows
 
