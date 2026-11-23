@@ -15,8 +15,15 @@ Scene Snap is now a runnable full-stack starter with HTML/CSS/JavaScript pages, 
 
 ## Run locally on Windows
 
-1. Install Python 3.10+ and a C compiler such as GCC (for example, the MSYS2 UCRT64 GCC toolchain).
-2. Open PowerShell in this repository and install the app:
+1. Install Python 3.10+ and [MSYS2](https://www.msys2.org/). In the MSYS2 UCRT64 terminal, install GCC with `pacman -S mingw-w64-ucrt-x86_64-gcc`.
+2. Open PowerShell in this repository. If MSYS2 is installed in its default folder, make GCC available in that PowerShell window:
+
+   ```powershell
+   $env:Path = "C:\msys64\ucrt64\bin;" + $env:Path
+   $env:CC = "gcc"
+   ```
+
+   Then install the app:
 
    ```powershell
    py -3 -m venv .venv
