@@ -15,6 +15,9 @@ from datetime import date, datetime, timedelta, timezone
 from email.message import EmailMessage
 from functools import wraps
 from pathlib import Path
+from math import isfinite
+
+from werkzeug.utils import secure_filename
 
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, send_from_directory, session, url_for
 
@@ -25,6 +28,8 @@ load_dotenv(ROOT / ".env")
 DB_FILE = Path(os.environ.get("SCENESNAP_DATABASE", ROOT / "instance" / "scenesnap.sqlite3"))
 SCHEMA_FILE = ROOT / "database" / "schema.sql"
 NATIVE_FILE = ROOT / "instance" / ("scenesnap_pricing.dll" if sys.platform == "win32" else "libscenesnap_pricing.dylib" if sys.platform == "darwin" else "libscenesnap_pricing.so")
+UPLOAD_DIR = Path(os.environ.get("SCENESNAP_UPLOAD_DIR", ROOT / "instance" / "uploads"))
+ALLOWED_MEDIA_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".mp4", ".webm"}
 BASE_URL = os.environ.get("SCENESNAP_BASE_URL", "http://127.0.0.1:5000").rstrip("/")
 CEO_EMAIL = os.environ.get("SCENESNAP_CEO_EMAIL", "").strip().lower()
 DEV_MODE = os.environ.get("SCENESNAP_DEV_MODE", "0") == "1"
@@ -32,7 +37,7 @@ HOURLY_RATE = max(0.0, min(float(os.environ.get("SCENESNAP_HOURLY_RATE", "25")),
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.secret_key = os.environ.get("SCENESNAP_SECRET_KEY", "")
-app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_SECURE=not DEV_MODE, MAX_CONTENT_LENGTH=2 * 1024 * 1024)
+app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_SECURE=not DEV_MODE, MAX_CONTENT_LENGTH=12 * 1024 * 1024)
 
 
 @contextmanager
@@ -98,6 +103,9 @@ def quote_c(decor_price: float, sourcing_cost: float, labor_hours: float, hourly
 def initialize():
     with db() as conn:
         conn.executescript(SCHEMA_FILE.read_text(encoding="utf-8"))
+        product_columns = {row["name"] for row in conn.execute("PRAGMA table_info(products)").fetchall()}
+        if "image_url" not in product_columns:
+            conn.execute("ALTER TABLE products ADD COLUMN image_url TEXT NOT NULL DEFAULT ''")
         products = [
             ("garden-birthday", "The Garden Birthday", "Birthday", "Soft florals, a name sign, and cheerful little details.", 6800, "🌷"),
             ("grad-moment", "The Grad Moment", "Graduation", "A photo-ready backdrop for the big next step.", 8200, "🎓"),
@@ -107,6 +115,13 @@ def initialize():
             ("proposal-set", "Just Us Proposal Set", "Milestone", "A personal setting for a once-in-a-lifetime question.", 12000, "💍"),
         ]
         conn.executemany("INSERT OR IGNORE INTO products(slug,name,category,description,price_cents,emoji) VALUES(?,?,?,?,?,?)", products)
+        services = [
+            ("custom-design", "Custom design", "Personalized colors, signage, favors, and coordinated decorations.", "✦", None, 0),
+            ("source-gather", "Source & gather", "We build a sourcing list, track costs, and bring all the pieces together.", "□", None, 1),
+            ("setup-styling", "Setup & styling", "Choose delivery, event-day styling, and teardown. Labor and travel are included in your estimate.", "◷", None, 2),
+        ]
+        conn.executemany("INSERT OR IGNORE INTO services(slug,name,description,icon,price_cents,sort_order) VALUES(?,?,?,?,?,?)", services)
+        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
         owner_email = CEO_EMAIL
         owner_password = os.environ.get("SCENESNAP_CEO_PASSWORD", "")
         if owner_email and owner_password:
@@ -222,6 +237,33 @@ def row_event(row):
     return {key: row[key] for key in row.keys()}
 
 
+def content_slug(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", str(value).strip().lower()).strip("-")[:80].strip("-")
+
+
+def clean_media_url(value: str) -> str:
+    url = str(value or "").strip()[:600]
+    if not url:
+        return ""
+    if url.startswith("/") and not url.startswith("//"):
+        return url
+    if url.startswith("https://"):
+        return url
+    raise ValueError("Media must use an uploaded /uploads/ link or an https:// address.")
+
+
+def price_to_cents(value, optional=False):
+    if optional and value in (None, ""):
+        return None
+    try:
+        amount = float(value)
+    except (TypeError, ValueError):
+        raise ValueError("Enter a valid price.")
+    if not isfinite(amount) or amount < 0 or amount > 1000000:
+        raise ValueError("Price must be between $0 and $1,000,000.")
+    return round(amount * 100)
+
+
 @app.get("/")
 def index():
     return send_from_directory(ROOT, "index.html")
@@ -247,6 +289,26 @@ def ceo_page():
     return render_template("ceo.html")
 
 
+@app.get("/ceo/content")
+@require_role("ceo")
+def ceo_content_page():
+    return render_template("content.html")
+
+
+@app.get("/page/<slug>")
+def public_page(slug):
+    with db() as conn:
+        page = conn.execute("SELECT * FROM site_pages WHERE slug=? AND published=1", (slug,)).fetchone()
+    if not page:
+        abort(404)
+    return render_template("public_page.html", page=page)
+
+
+@app.get("/uploads/<path:filename>")
+def uploaded_media(filename):
+    return send_from_directory(UPLOAD_DIR, filename, conditional=True)
+
+
 @app.get("/verify")
 def verify_page():
     return render_template("verify.html")
@@ -255,8 +317,22 @@ def verify_page():
 @app.get("/api/products")
 def products():
     with db() as conn:
-        rows = conn.execute("SELECT id,slug,name,category,description,price_cents,emoji FROM products WHERE active=1 ORDER BY id").fetchall()
+        rows = conn.execute("SELECT id,slug,name,category,description,price_cents,emoji,image_url FROM products WHERE active=1 ORDER BY id").fetchall()
     return jsonify(products=[row_event(r) for r in rows])
+
+
+@app.get("/api/services")
+def public_services():
+    with db() as conn:
+        rows = conn.execute("SELECT id,slug,name,description,icon,image_url,price_cents FROM services WHERE active=1 ORDER BY sort_order,id").fetchall()
+    return jsonify(services=[row_event(r) for r in rows])
+
+
+@app.get("/api/pages")
+def public_pages():
+    with db() as conn:
+        rows = conn.execute("SELECT slug,title,summary,media_url FROM site_pages WHERE published=1 ORDER BY sort_order,id").fetchall()
+    return jsonify(pages=[row_event(r) for r in rows])
 
 
 @app.get("/api/me")
@@ -717,6 +793,188 @@ def ceo_records():
     with db() as conn:
         rows = conn.execute("SELECT * FROM business_records ORDER BY updated_at DESC").fetchall()
     return jsonify(records=[row_event(r) for r in rows])
+
+
+@app.get("/api/ceo/content")
+@require_role("ceo")
+def ceo_content():
+    with db() as conn:
+        products = conn.execute("SELECT * FROM products ORDER BY id DESC").fetchall()
+        services = conn.execute("SELECT * FROM services ORDER BY sort_order,id").fetchall()
+        pages = conn.execute("SELECT * FROM site_pages ORDER BY sort_order,id").fetchall()
+        media = conn.execute("SELECT * FROM media_assets ORDER BY id DESC").fetchall()
+    return jsonify(products=[row_event(r) for r in products], services=[row_event(r) for r in services], pages=[row_event(r) for r in pages], media=[row_event(r) for r in media])
+
+
+def content_values(data, required_name=True):
+    name = str(data.get("name", "")).strip()[:160]
+    if required_name and not name:
+        raise ValueError("Add a name or title.")
+    slug = content_slug(data.get("slug") or name)
+    if not slug:
+        raise ValueError("Use letters or numbers for the page address.")
+    description = str(data.get("description", "")).strip()[:2000]
+    image_url = clean_media_url(data.get("image_url", ""))
+    return name, slug, description, image_url
+
+
+@app.post("/api/ceo/products")
+@require_role("ceo")
+def add_product():
+    data = json_body()
+    try:
+        name, slug, description, image_url = content_values(data)
+        category = str(data.get("category", "")).strip()[:60]
+        if not category:
+            raise ValueError("Add a product category.")
+        price_cents = price_to_cents(data.get("price"))
+        emoji = str(data.get("emoji", "✿")).strip()[:12] or "✿"
+        with db() as conn:
+            cur = conn.execute("INSERT INTO products(slug,name,category,description,price_cents,emoji,image_url,active) VALUES(?,?,?,?,?,?,?,1)", (slug,name,category,description,price_cents,emoji,image_url))
+        return jsonify(message="Product added.", id=cur.lastrowid), 201
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except sqlite3.IntegrityError:
+        return jsonify(error="That product page address is already in use."), 409
+
+
+@app.patch("/api/ceo/products/<int:item_id>")
+@require_role("ceo")
+def update_product(item_id):
+    data = json_body()
+    try:
+        with db() as conn:
+            existing = conn.execute("SELECT * FROM products WHERE id=?", (item_id,)).fetchone()
+            if not existing:
+                return jsonify(error="Product not found."), 404
+            merged = dict(existing)
+            merged.update(data)
+            name, slug, description, image_url = content_values(merged)
+            category = str(merged.get("category", "")).strip()[:60]
+            if not category:
+                raise ValueError("Add a product category.")
+            price_cents = price_to_cents(merged.get("price", round(merged.get("price_cents", 0) / 100, 2)))
+            emoji = str(merged.get("emoji", "✿")).strip()[:12] or "✿"
+            active = 1 if merged.get("active", True) else 0
+            conn.execute("UPDATE products SET slug=?,name=?,category=?,description=?,price_cents=?,emoji=?,image_url=?,active=? WHERE id=?", (slug,name,category,description,price_cents,emoji,image_url,active,item_id))
+        return jsonify(message="Product updated.")
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except sqlite3.IntegrityError:
+        return jsonify(error="That product page address is already in use."), 409
+
+
+@app.post("/api/ceo/services")
+@require_role("ceo")
+def add_service():
+    data = json_body()
+    try:
+        name, slug, description, image_url = content_values(data)
+        icon = str(data.get("icon", "✦")).strip()[:12] or "✦"
+        price_cents = price_to_cents(data.get("price"), optional=True)
+        with db() as conn:
+            cur = conn.execute("INSERT INTO services(slug,name,description,icon,image_url,price_cents,sort_order,active) VALUES(?,?,?,?,?,?,COALESCE((SELECT MAX(sort_order)+1 FROM services),0),1)", (slug,name,description,icon,image_url,price_cents))
+        return jsonify(message="Service added.", id=cur.lastrowid), 201
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except sqlite3.IntegrityError:
+        return jsonify(error="That service page address is already in use."), 409
+
+
+@app.patch("/api/ceo/services/<int:item_id>")
+@require_role("ceo")
+def update_service(item_id):
+    data = json_body()
+    try:
+        with db() as conn:
+            existing = conn.execute("SELECT * FROM services WHERE id=?", (item_id,)).fetchone()
+            if not existing:
+                return jsonify(error="Service not found."), 404
+            merged = dict(existing)
+            merged.update(data)
+            name, slug, description, image_url = content_values(merged)
+            icon = str(merged.get("icon", "✦")).strip()[:12] or "✦"
+            price_cents = price_to_cents(merged.get("price", "" if merged.get("price_cents") is None else round(merged.get("price_cents") / 100, 2)), optional=True)
+            active = 1 if merged.get("active", True) else 0
+            conn.execute("UPDATE services SET slug=?,name=?,description=?,icon=?,image_url=?,price_cents=?,active=?,updated_at=CURRENT_TIMESTAMP WHERE id=?", (slug,name,description,icon,image_url,price_cents,active,item_id))
+        return jsonify(message="Service updated.")
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except sqlite3.IntegrityError:
+        return jsonify(error="That service page address is already in use."), 409
+
+
+@app.post("/api/ceo/pages")
+@require_role("ceo")
+def add_site_page():
+    data = json_body()
+    try:
+        title = str(data.get("title", "")).strip()[:160]
+        if not title:
+            raise ValueError("Add a page title.")
+        slug = content_slug(data.get("slug") or title)
+        if not slug:
+            raise ValueError("Use letters or numbers for the page address.")
+        media_url = clean_media_url(data.get("media_url", ""))
+        summary = str(data.get("summary", "")).strip()[:500]
+        body = str(data.get("body", "")).strip()[:20000]
+        published = 1 if data.get("published") else 0
+        with db() as conn:
+            cur = conn.execute("INSERT INTO site_pages(slug,title,summary,body,media_url,published) VALUES(?,?,?,?,?,?)", (slug,title,summary,body,media_url,published))
+        return jsonify(message="Page saved.", id=cur.lastrowid, url=f"/page/{slug}"), 201
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except sqlite3.IntegrityError:
+        return jsonify(error="That page address is already in use."), 409
+
+
+@app.patch("/api/ceo/pages/<int:item_id>")
+@require_role("ceo")
+def update_site_page(item_id):
+    data = json_body()
+    try:
+        with db() as conn:
+            existing = conn.execute("SELECT * FROM site_pages WHERE id=?", (item_id,)).fetchone()
+            if not existing:
+                return jsonify(error="Page not found."), 404
+            merged = dict(existing)
+            merged.update(data)
+            title = str(merged.get("title", "")).strip()[:160]
+            if not title:
+                raise ValueError("Add a page title.")
+            slug = content_slug(merged.get("slug") or title)
+            if not slug:
+                raise ValueError("Use letters or numbers for the page address.")
+            media_url = clean_media_url(merged.get("media_url", ""))
+            summary = str(merged.get("summary", "")).strip()[:500]
+            body = str(merged.get("body", "")).strip()[:20000]
+            published = 1 if merged.get("published") else 0
+            conn.execute("UPDATE site_pages SET slug=?,title=?,summary=?,body=?,media_url=?,published=?,updated_at=CURRENT_TIMESTAMP WHERE id=?", (slug,title,summary,body,media_url,published,item_id))
+        return jsonify(message="Page updated.", url=f"/page/{slug}")
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
+    except sqlite3.IntegrityError:
+        return jsonify(error="That page address is already in use."), 409
+
+
+@app.post("/api/ceo/media")
+@require_role("ceo")
+def upload_media():
+    file = request.files.get("file")
+    if not file or not file.filename:
+        return jsonify(error="Choose an image or video to upload."), 400
+    original_name = secure_filename(file.filename)
+    extension = Path(original_name).suffix.lower()
+    if extension not in ALLOWED_MEDIA_EXTENSIONS:
+        return jsonify(error="Use JPG, PNG, WEBP, GIF, MP4, or WEBM files."), 400
+    stored_name = f"{secrets.token_hex(12)}{extension}"
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    file.save(UPLOAD_DIR / stored_name)
+    mime_type = file.mimetype or "application/octet-stream"
+    media_type = "video" if extension in {".mp4", ".webm"} else "image"
+    with db() as conn:
+        cur = conn.execute("INSERT INTO media_assets(stored_name,original_name,media_type,mime_type,size_bytes,uploaded_by) VALUES(?,?,?,?,?,?)", (stored_name,original_name,media_type,mime_type,(UPLOAD_DIR / stored_name).stat().st_size,g.scene_user["id"]))
+    return jsonify(message="Media uploaded.", asset={"id":cur.lastrowid,"original_name":original_name,"media_type":media_type,"url":f"/uploads/{stored_name}"}), 201
 
 
 @app.get("/health")
