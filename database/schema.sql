@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS products (
     description TEXT NOT NULL DEFAULT '',
     price_cents INTEGER NOT NULL CHECK(price_cents >= 0),
     emoji TEXT NOT NULL DEFAULT '✿',
+    image_url TEXT NOT NULL DEFAULT '',
     active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
     seasonal_start TEXT,
     seasonal_end TEXT,
@@ -166,3 +167,46 @@ CREATE INDEX IF NOT EXISTS designs_customer ON designs(customer_id,created_at);
 CREATE INDEX IF NOT EXISTS orders_customer_date ON orders(customer_id,created_at);
 CREATE INDEX IF NOT EXISTS audit_entity ON audit_log(entity,entity_id,created_at);
 CREATE UNIQUE INDEX IF NOT EXISTS inventory_name_unique ON inventory_items(name COLLATE NOCASE);
+
+
+CREATE TABLE IF NOT EXISTS services (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    icon TEXT NOT NULL DEFAULT '✦',
+    image_url TEXT NOT NULL DEFAULT '',
+    price_cents INTEGER CHECK(price_cents IS NULL OR price_cents >= 0),
+    active INTEGER NOT NULL DEFAULT 1 CHECK(active IN (0,1)),
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS site_pages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT NOT NULL UNIQUE,
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL DEFAULT '',
+    body TEXT NOT NULL DEFAULT '',
+    media_url TEXT NOT NULL DEFAULT '',
+    published INTEGER NOT NULL DEFAULT 0 CHECK(published IN (0,1)),
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS media_assets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    stored_name TEXT NOT NULL UNIQUE,
+    original_name TEXT NOT NULL,
+    media_type TEXT NOT NULL CHECK(media_type IN ('image','video')),
+    mime_type TEXT NOT NULL DEFAULT 'application/octet-stream',
+    size_bytes INTEGER NOT NULL DEFAULT 0,
+    uploaded_by INTEGER REFERENCES users(id),
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS services_active_order ON services(active,sort_order,id);
+CREATE INDEX IF NOT EXISTS site_pages_published_order ON site_pages(published,sort_order,id);
+CREATE INDEX IF NOT EXISTS media_assets_created ON media_assets(created_at);
