@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Scene Snap Content Studio</title><link rel="stylesheet" href="{{ url_for('static',filename='styles.css') }}"></head>
+<body>
+<header class="wrap topbar"><a class="brand" href="/">scene <i>snap</i></a><nav><a href="/">Customer shop</a><a href="/workroom">Workroom</a><a href="/ceo">CEO office</a><a href="/ceo/content">Content studio</a></nav><div class="top-actions"><span class="muted">Private owner area</span><a class="outline" href="/ceo">Back to CEO office</a></div></header>
+<main class="wrap content-main">
+<div class="eyebrow">Your site, your content</div><h1>Content studio</h1><p class="muted">Update what customers see. Your edits save to the local Scene Snap database.</p>
+<div id="contentStatus" class="content-status" aria-live="polite"></div>
+<div class="content-tabs" role="tablist"><button class="content-tab active" data-panel="productsPanel">Products</button><button class="content-tab" data-panel="servicesPanel">Services</button><button class="content-tab" data-panel="pagesPanel">Pages</button><button class="content-tab" data-panel="mediaPanel">Media</button></div>
+<section class="content-panel" id="productsPanel"><div class="content-editor-grid">
+<section class="panel"><h2 id="productFormTitle">Add a product</h2><form id="productForm" class="compact-form content-form"><input type="hidden" name="id"><label>Product name<input name="name" maxlength="160" required></label><label>Category<input name="category" maxlength="60" placeholder="Birthday, graduation, wedding…" required></label><label>Description<textarea name="description" maxlength="2000"></textarea></label><div class="form-row"><label>Price in dollars<input name="price" type="number" min="0" max="1000000" step="0.01" required></label><label>Card symbol<input name="emoji" maxlength="12" value="✿"></label></div><label>Image URL or uploaded media link<input name="image_url" maxlength="600" placeholder="/uploads/... or https://..."></label><div class="content-entry-actions"><button class="button" type="submit">Save product</button><button class="outline" type="reset">Clear</button></div></form></section>
+<section class="panel"><h2>Products on the shop</h2><div id="productList" class="content-list"></div></section>
+</div></section>
+<section class="content-panel" id="servicesPanel" hidden><div class="content-editor-grid">
+<section class="panel"><h2 id="serviceFormTitle">Add a service</h2><form id="serviceForm" class="compact-form content-form"><input type="hidden" name="id"><label>Service name<input name="name" maxlength="160" required></label><label>Description<textarea name="description" maxlength="2000"></textarea></label><div class="form-row"><label>Card symbol<input name="icon" maxlength="12" value="✦"></label><label>Optional starting price<input name="price" type="number" min="0" max="1000000" step="0.01"></label></div><label>Image URL or uploaded media link<input name="image_url" maxlength="600" placeholder="/uploads/... or https://..."></label><div class="content-entry-actions"><button class="button" type="submit">Save service</button><button class="outline" type="reset">Clear</button></div></form></section>
+<section class="panel"><h2>Services on the site</h2><div id="serviceList" class="content-list"></div></section>
+</div></section>
+<section class="content-panel" id="pagesPanel" hidden><div class="content-editor-grid">
+<section class="panel"><h2 id="pageFormTitle">Create a page</h2><form id="pageForm" class="compact-form content-form"><input type="hidden" name="id"><label>Page title<input name="title" maxlength="160" required></label><label>Page address<input name="slug" maxlength="80" placeholder="about-us"></label><label>Short introduction<input name="summary" maxlength="500"></label><label>Page text<textarea name="body" maxlength="20000" rows="9" placeholder="Write the page text here. Line breaks are kept."></textarea></label><label>Image or video URL<input name="media_url" maxlength="600" placeholder="/uploads/... or https://..."></label><label class="checkbox-line"><input name="published" type="checkbox" value="true"> Show this page to visitors</label><div class="content-entry-actions"><button class="button" type="submit">Save page</button><button class="outline" type="reset">Clear</button></div></form><p class="form-hint">Published pages appear in the shop navigation. Draft pages stay private.</p></section>
+<section class="panel"><h2>Your pages</h2><div id="pageList" class="content-list"></div></section>
+</div></section>
+<section class="content-panel" id="mediaPanel" hidden><div class="content-editor-grid">
+<section class="panel"><h2>Upload media</h2><p class="muted">Add photos or short videos, then copy their link into a product, service, or page.</p><form id="mediaForm" class="compact-form content-form"><label>Choose image or video<input name="file" type="file" accept=".jpg,.jpeg,.png,.webp,.gif,.mp4,.webm" required></label><button class="button" type="submit">Upload media</button></form><p class="form-hint">Supported: JPG, PNG, WEBP, GIF, MP4, WEBM. Maximum 12 MB per file.</p></section>
+<section class="panel"><h2>Media library</h2><div id="mediaList" class="content-list"></div></section>
+</div></section>
+</main>
+<script src="{{ url_for('static',filename='content.js') }}" defer></script>
+</body></html>
